@@ -28,8 +28,10 @@ public sealed class WorkOrder
 	public WorkOrderStatus Status { get; set; } = WorkOrderStatus.Created;
 	public WorkOrderPriority Priority { get; set; } = WorkOrderPriority.Medium;
 	public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+	public DateTime? UpdatedAt { get; set; }
 	public DateTime? ScheduledAt { get; set; }
 	public DateTime? CompletedAt { get; set; }
+	public bool IsDeleted { get; set; }
 
 	public Customer? Customer { get; set; }
 	public Appliance? Appliance { get; set; }

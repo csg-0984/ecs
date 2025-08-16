@@ -10,6 +10,10 @@ public sealed class Appliance
 	public DateTime? PurchaseDate { get; set; }
 	public DateTime? WarrantyExpiryDate { get; set; }
 	public string Notes { get; set; } = string.Empty;
+	public DateTime? UpdatedAt { get; set; }
+	public bool IsDeleted { get; set; }
+	public string? MainImageUrl { get; set; }
+	public string? WarrantyFileUrl { get; set; }
 
 	public Customer? Customer { get; set; }
 }

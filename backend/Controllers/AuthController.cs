@@ -6,6 +6,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using FluentValidation;
 
 namespace KitchenAfterSales.Api.Controllers;
 
@@ -53,8 +54,36 @@ public sealed class AuthController : ControllerBase
 		}
 
 		var token = GenerateJwt(user);
-		return Ok(new { token, user = new { user.Id, user.Email, user.Name } });
+		return Ok(new { token, user = new { user.Id, user.Email, user.Name, user.Role } });
 	}
+
+	[HttpGet("me")]
+	public async Task<IActionResult> Me()
+	{
+		var sub = User.FindFirstValue(JwtRegisteredClaimNames.Sub) ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
+		if (sub is null) return Unauthorized();
+		if (!Guid.TryParse(sub, out var userId)) return Unauthorized();
+		var user = await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId);
+		if (user is null) return Unauthorized();
+		return Ok(new { user.Id, user.Email, user.Name, user.Role });
+	}
+
+	#if DEBUG
+	[HttpPost("seed-demo")]
+	public async Task<IActionResult> SeedDemo()
+	{
+		if (!await _db.Users.AnyAsync())
+		{
+			_db.Users.AddRange(
+				new AppUser { Id = Guid.NewGuid(), Email = "admin@example.com", Name = "Admin", Role = "Admin", PasswordHash = BCrypt.Net.BCrypt.HashPassword("Pass@123") },
+				new AppUser { Id = Guid.NewGuid(), Email = "dispatcher@example.com", Name = "Dispatcher", Role = "Dispatcher", PasswordHash = BCrypt.Net.BCrypt.HashPassword("Pass@123") },
+				new AppUser { Id = Guid.NewGuid(), Email = "tech@example.com", Name = "Tech", Role = "Technician", PasswordHash = BCrypt.Net.BCrypt.HashPassword("Pass@123") }
+			);
+			await _db.SaveChangesAsync();
+		}
+		return Ok(new { message = "Seeded" });
+	}
+	#endif
 
 	private string GenerateJwt(AppUser user)
 	{
@@ -68,7 +97,9 @@ public sealed class AuthController : ControllerBase
 		{
 			new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
 			new(JwtRegisteredClaimNames.Email, user.Email),
-			new("name", user.Name)
+			new(ClaimTypes.NameIdentifier, user.Id.ToString()),
+			new(ClaimTypes.Name, user.Name),
+			new(ClaimTypes.Role, user.Role)
 		};
 
 		var token = new JwtSecurityToken(
@@ -94,4 +125,23 @@ public sealed class LoginRequest
 {
 	public string Email { get; set; } = string.Empty;
 	public string Password { get; set; } = string.Empty;
+}
+
+public sealed class RegisterRequestValidator : AbstractValidator<RegisterRequest>
+{
+	public RegisterRequestValidator()
+	{
+		RuleFor(x => x.Email).NotEmpty().EmailAddress();
+		RuleFor(x => x.Name).NotEmpty().MinimumLength(2);
+		RuleFor(x => x.Password).NotEmpty().MinimumLength(6);
+	}
+}
+
+public sealed class LoginRequestValidator : AbstractValidator<LoginRequest>
+{
+	public LoginRequestValidator()
+	{
+		RuleFor(x => x.Email).NotEmpty().EmailAddress();
+		RuleFor(x => x.Password).NotEmpty();
+	}
 }

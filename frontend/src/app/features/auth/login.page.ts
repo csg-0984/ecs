@@ -34,7 +34,12 @@ export class LoginPageComponent {
     this.loading = true;
     const { email, password } = this.form.value as { email: string; password: string };
     this.auth.login(email, password).subscribe({
-      next: () => { this.loading = false; this.router.navigateByUrl('/customers'); },
+      next: () => {
+        this.loading = false;
+        const u = (this.auth as any).user$.value;
+        if (u?.role === 'Admin' || u?.role === 'Dispatcher') this.router.navigateByUrl('/workorders');
+        else this.router.navigateByUrl('/customers');
+      },
       error: (err) => { this.loading = false; this.error = err?.error?.message || '登录失败'; }
     });
   }

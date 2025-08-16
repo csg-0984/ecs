@@ -1,9 +1,20 @@
-<div style="padding: 8px; display: flex; gap: 12px; align-items: center; border-bottom: 1px solid #eee;">
-  <a routerLink="/customers">客户</a>
-  <a routerLink="/appliances">设备</a>
-  <a routerLink="/workorders">工单</a>
-  <a routerLink="/technicians">技师</a>
-  <a routerLink="/schedules">排班</a>
+<div style="padding: 8px; display: flex; gap: 12px; align-items: center; border-bottom: 1px solid #eee; justify-content: space-between;">
+  <div style="display:flex; gap:12px; align-items:center;">
+    <a routerLink="/customers">客户</a>
+    <a routerLink="/appliances">设备</a>
+    <a routerLink="/workorders">工单</a>
+    <a routerLink="/technicians" *ngIf="auth.hasRole('Admin')">技师</a>
+    <a routerLink="/schedules" *ngIf="auth.hasRole('Dispatcher','Admin')">排班</a>
+  </div>
+  <div>
+    <ng-container *ngIf="auth.isAuthenticated(); else loginLink">
+      <span *ngIf="(auth.currentUser$() | async) as u">{{u.name}} ({{u.role}})</span>
+      <button ejs-button cssClass="e-flat" (click)="logout()">退出</button>
+    </ng-container>
+    <ng-template #loginLink>
+      <a routerLink="/login">登录</a>
+    </ng-template>
+  </div>
 </div>
 <div style="padding: 16px;">
   <router-outlet></router-outlet>

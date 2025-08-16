@@ -3,6 +3,7 @@ using KitchenAfterSales.Api.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using FluentValidation;
 
 namespace KitchenAfterSales.Api.Controllers;
 
@@ -29,16 +30,26 @@ public sealed class TechniciansController : ControllerBase
 	}
 
 	[HttpPost]
-	public async Task<ActionResult<Technician>> Create([FromBody] Technician body)
+	[Authorize(Policy = "AdminOnly")]
+	public async Task<ActionResult<Technician>> Create([FromBody] TechnicianCreateDto body)
 	{
-		body.Id = Guid.NewGuid();
-		_db.Technicians.Add(body);
+		var entity = new Technician
+		{
+			Id = Guid.NewGuid(),
+			Name = body.Name,
+			Phone = body.Phone,
+			Email = body.Email,
+			Skills = body.Skills,
+			IsActive = body.IsActive
+		};
+		_db.Technicians.Add(entity);
 		await _db.SaveChangesAsync();
-		return CreatedAtAction(nameof(GetById), new { id = body.Id }, body);
+		return CreatedAtAction(nameof(GetById), new { id = entity.Id }, entity);
 	}
 
 	[HttpPut("{id}")]
-	public async Task<IActionResult> Update(Guid id, [FromBody] Technician body)
+	[Authorize(Policy = "AdminOnly")]
+	public async Task<IActionResult> Update(Guid id, [FromBody] TechnicianUpdateDto body)
 	{
 		var entity = await _db.Technicians.FindAsync(id);
 		if (entity is null) return NotFound();
@@ -52,6 +63,7 @@ public sealed class TechniciansController : ControllerBase
 	}
 
 	[HttpDelete("{id}")]
+	[Authorize(Policy = "AdminOnly")]
 	public async Task<IActionResult> Delete(Guid id)
 	{
 		var entity = await _db.Technicians.FindAsync(id);
@@ -59,5 +71,34 @@ public sealed class TechniciansController : ControllerBase
 		_db.Technicians.Remove(entity);
 		await _db.SaveChangesAsync();
 		return NoContent();
+	}
+}
+
+public sealed class TechnicianCreateDto
+{
+	public string Name { get; set; } = string.Empty;
+	public string Phone { get; set; } = string.Empty;
+	public string Email { get; set; } = string.Empty;
+	public string Skills { get; set; } = string.Empty;
+	public bool IsActive { get; set; } = true;
+}
+
+public sealed class TechnicianUpdateDto : TechnicianCreateDto {}
+
+public sealed class TechnicianCreateDtoValidator : AbstractValidator<TechnicianCreateDto>
+{
+	public TechnicianCreateDtoValidator()
+	{
+		RuleFor(x => x.Name).NotEmpty();
+		RuleFor(x => x.Phone).NotEmpty();
+		RuleFor(x => x.Email).NotEmpty().EmailAddress();
+	}
+}
+
+public sealed class TechnicianUpdateDtoValidator : AbstractValidator<TechnicianUpdateDto>
+{
+	public TechnicianUpdateDtoValidator()
+	{
+		Include(new TechnicianCreateDtoValidator());
 	}
 }

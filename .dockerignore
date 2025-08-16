@@ -1,0 +1,9 @@
+node_modules
+frontend/node_modules
+backend/bin
+backend/obj
+.git
+.gitignore
+Dockerfile
+.nginx.conf
+**/*.log

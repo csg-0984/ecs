@@ -11,6 +11,7 @@ import { DatePickerModule } from '@syncfusion/ej2-angular-calendars';
 import { ButtonModule } from '@syncfusion/ej2-angular-buttons';
 import { DialogModule } from '@syncfusion/ej2-angular-popups';
 import { AuthInterceptor } from './core/auth.interceptor';
+import { ScheduleModule, DayService, WeekService, WorkWeekService, MonthService, AgendaService } from '@syncfusion/ej2-angular-schedule';
 
 @NgModule({
   declarations: [
@@ -24,10 +25,12 @@ import { AuthInterceptor } from './core/auth.interceptor';
     DropDownListModule,
     DatePickerModule,
     ButtonModule,
-    DialogModule
+    DialogModule,
+    ScheduleModule
   ],
   providers: [
     PageService, SortService, FilterService, ToolbarService, EditService,
+    DayService, WeekService, WorkWeekService, MonthService, AgendaService,
     { provide: HTTP_INTERCEPTORS, useClass: AuthInterceptor, multi: true }
   ],
   bootstrap: [AppComponent]
