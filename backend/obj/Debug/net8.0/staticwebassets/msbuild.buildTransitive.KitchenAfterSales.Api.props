@@ -1,0 +1,3 @@
+﻿<Project>
+  <Import Project="../buildMultiTargeting/KitchenAfterSales.Api.props" />
+</Project>

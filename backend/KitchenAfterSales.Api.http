@@ -1,0 +1,6 @@
+@KitchenAfterSales.Api_HostAddress = http://localhost:5255
+
+GET {{KitchenAfterSales.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
