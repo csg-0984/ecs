@@ -3,6 +3,7 @@ using KitchenAfterSales.Api.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using FluentValidation;
 
 namespace KitchenAfterSales.Api.Controllers;
 
@@ -15,14 +16,16 @@ public sealed class SchedulesController : ControllerBase
 	public SchedulesController(AppDbContext db) { _db = db; }
 
 	[HttpGet]
-	public async Task<ActionResult<IEnumerable<Schedule>>> GetAll()
+	public async Task<ActionResult<IEnumerable<Schedule>>> GetAll([FromQuery] DateTime? start = null, [FromQuery] DateTime? end = null)
 	{
-		var list = await _db.Schedules
+		var query = _db.Schedules
 			.Include(s => s.Technician)
 			.Include(s => s.WorkOrder)
 			.AsNoTracking()
-			.OrderBy(s => s.StartTime)
-			.ToListAsync();
+			.AsQueryable();
+		if (start.HasValue) query = query.Where(s => s.EndTime >= start.Value);
+		if (end.HasValue) query = query.Where(s => s.StartTime <= end.Value);
+		var list = await query.OrderBy(s => s.StartTime).ToListAsync();
 		return Ok(list);
 	}
 
@@ -38,16 +41,26 @@ public sealed class SchedulesController : ControllerBase
 	}
 
 	[HttpPost]
-	public async Task<ActionResult<Schedule>> Create([FromBody] Schedule body)
+	[Authorize(Policy = "DispatcherOrAdmin")]
+	public async Task<ActionResult<Schedule>> Create([FromBody] ScheduleCreateDto body)
 	{
-		body.Id = Guid.NewGuid();
-		_db.Schedules.Add(body);
+		var entity = new Schedule
+		{
+			Id = Guid.NewGuid(),
+			TechnicianId = body.TechnicianId,
+			WorkOrderId = body.WorkOrderId,
+			StartTime = body.StartTime,
+			EndTime = body.EndTime,
+			Status = body.Status
+		};
+		_db.Schedules.Add(entity);
 		await _db.SaveChangesAsync();
-		return CreatedAtAction(nameof(GetById), new { id = body.Id }, body);
+		return CreatedAtAction(nameof(GetById), new { id = entity.Id }, entity);
 	}
 
 	[HttpPut("{id}")]
-	public async Task<IActionResult> Update(Guid id, [FromBody] Schedule body)
+	[Authorize(Policy = "DispatcherOrAdmin")]
+	public async Task<IActionResult> Update(Guid id, [FromBody] ScheduleUpdateDto body)
 	{
 		var entity = await _db.Schedules.FindAsync(id);
 		if (entity is null) return NotFound();
@@ -61,6 +74,7 @@ public sealed class SchedulesController : ControllerBase
 	}
 
 	[HttpDelete("{id}")]
+	[Authorize(Policy = "DispatcherOrAdmin")]
 	public async Task<IActionResult> Delete(Guid id)
 	{
 		var entity = await _db.Schedules.FindAsync(id);
@@ -68,5 +82,35 @@ public sealed class SchedulesController : ControllerBase
 		_db.Schedules.Remove(entity);
 		await _db.SaveChangesAsync();
 		return NoContent();
+	}
+}
+
+public sealed class ScheduleCreateDto
+{
+	public Guid TechnicianId { get; set; }
+	public Guid WorkOrderId { get; set; }
+	public DateTime StartTime { get; set; }
+	public DateTime EndTime { get; set; }
+	public ScheduleStatus Status { get; set; } = ScheduleStatus.Scheduled;
+}
+
+public sealed class ScheduleUpdateDto : ScheduleCreateDto { }
+
+public sealed class ScheduleCreateDtoValidator : AbstractValidator<ScheduleCreateDto>
+{
+	public ScheduleCreateDtoValidator()
+	{
+		RuleFor(x => x.TechnicianId).NotEmpty();
+		RuleFor(x => x.WorkOrderId).NotEmpty();
+		RuleFor(x => x.StartTime).NotEmpty();
+		RuleFor(x => x.EndTime).NotEmpty().GreaterThan(x => x.StartTime);
+	}
+}
+
+public sealed class ScheduleUpdateDtoValidator : AbstractValidator<ScheduleUpdateDto>
+{
+	public ScheduleUpdateDtoValidator()
+	{
+		Include(new ScheduleCreateDtoValidator());
 	}
 }

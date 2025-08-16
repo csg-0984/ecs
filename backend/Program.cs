@@ -2,14 +2,21 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using FluentValidation.AspNetCore;
+using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddControllers();
+builder.Services.AddControllers().AddFluentValidation(fv =>
+{
+	fv.RegisterValidatorsFromAssemblyContaining<Program>();
+});
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+builder.Services.AddHttpContextAccessor();
 
 // CORS for Angular dev server
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? new[] { "http://localhost:4200" };
@@ -63,6 +70,14 @@ builder.Services
 		};
 	});
 
+// Authorization policies by role
+builder.Services.AddAuthorization(options =>
+{
+	options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
+	options.AddPolicy("DispatcherOrAdmin", policy => policy.RequireRole("Dispatcher", "Admin"));
+	options.AddPolicy("TechnicianOrAdmin", policy => policy.RequireRole("Technician", "Admin"));
+});
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -76,6 +91,13 @@ app.UseCors("AppCors");
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Serve static files for uploads (e.g., /uploads/*)
+app.UseStaticFiles(new StaticFileOptions
+{
+	FileProvider = new PhysicalFileProvider(Path.Combine(app.Environment.ContentRootPath, "uploads")),
+	RequestPath = "/uploads"
+});
 
 app.MapControllers();
 

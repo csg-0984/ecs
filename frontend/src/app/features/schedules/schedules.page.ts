@@ -1,33 +1,47 @@
-import { Component, OnInit } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { Component, OnInit, ViewChild } from '@angular/core';
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { ScheduleComponent, EventSettingsModel, View } from '@syncfusion/ej2-angular-schedule';
 
-interface Schedule {
-  id: string;
-  technicianId: string;
-  workOrderId: string;
-  startTime: string;
-  endTime: string;
-  status: number;
+interface ScheduleEvent {
+  Id: string;
+  Subject: string;
+  StartTime: Date;
+  EndTime: Date;
 }
 
 @Component({
   selector: 'app-schedules-page',
   template: `
-    <ejs-grid [dataSource]="schedules" [allowPaging]="true" [pageSettings]="{ pageSize: 10 }" [toolbar]="['Search']">
-      <e-columns>
-        <e-column field="technicianId" headerText="技师" width="200"></e-column>
-        <e-column field="workOrderId" headerText="工单" width="200"></e-column>
-        <e-column field="startTime" headerText="开始" width="180" format="yMd"></e-column>
-        <e-column field="endTime" headerText="结束" width="180" format="yMd"></e-column>
-        <e-column field="status" headerText="状态" width="120"></e-column>
-      </e-columns>
-    </ejs-grid>
+    <ejs-schedule #schedule width='100%' height='650px' [selectedDate]="selectedDate" [currentView]="currentView" [eventSettings]="eventSettings"></ejs-schedule>
   `
 })
 export class SchedulesPageComponent implements OnInit {
-  schedules: Schedule[] = [];
+  @ViewChild('schedule', { static: true }) schedule!: ScheduleComponent;
+  selectedDate: Date = new Date();
+  currentView: View = 'Week';
+  eventSettings: EventSettingsModel = { dataSource: [] };
+
   constructor(private http: HttpClient) {}
+
   ngOnInit(): void {
-    this.http.get<Schedule[]>('/api/schedules').subscribe(res => this.schedules = res);
+    this.loadEvents(this.selectedDate);
+  }
+
+  private loadEvents(center: Date) {
+    const start = new Date(center);
+    start.setDate(start.getDate() - 7);
+    const end = new Date(center);
+    end.setDate(end.getDate() + 21);
+
+    const params = new HttpParams().set('start', start.toISOString()).set('end', end.toISOString());
+    this.http.get<any[]>(`/api/schedules`, { params }).subscribe(list => {
+      const events = list.map(x => ({
+        Id: x.id,
+        Subject: `工单 ${x.workOrderId}`,
+        StartTime: new Date(x.startTime),
+        EndTime: new Date(x.endTime)
+      }));
+      this.eventSettings = { dataSource: events };
+    });
   }
 }
